@@ -1,5 +1,6 @@
 fastapi
 httpx
+python-dotenv
 duckduckgo-search
 beautifulsoup4
 lxml
