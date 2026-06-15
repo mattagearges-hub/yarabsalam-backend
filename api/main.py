@@ -24,7 +24,7 @@ class ChatRequest(BaseModel):
     name: str = ""
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_ID = "openrouter/free"
+MODEL_ID = "meta-llama/llama-3.3-70b-instruct:free"
 
 # المواقع المعتمدة للبحث المسيحي
 ALLOWED_DOMAINS = [
