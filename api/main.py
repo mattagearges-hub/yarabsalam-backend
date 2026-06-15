@@ -21,7 +21,7 @@ class ChatRequest(BaseModel):
     message: str
 
 API_URL = "https://openrouter.ai"
-MODEL_ID = "meta-llama/llama-3.1-8b-instruct:free"
+MODEL_ID = "qwen/qwen-2.5-72b-instruct:free"
 
 FORBIDDEN_KEYWORDS = ["دوا", "علاج", "روشتة", "أنتحر", "الانتحار", "موت نفسي", "حبوب مهدئة"]
 
