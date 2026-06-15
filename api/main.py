@@ -24,7 +24,7 @@ class ChatRequest(BaseModel):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_ID = "nvidia/nemotron-3-ultra-550b-a55b:free"
+MODEL_ID = "meta-llama/llama-3.3-70b-instruct:free"
 
 ALLOWED_DOMAINS = [
     "st-takla.org",
