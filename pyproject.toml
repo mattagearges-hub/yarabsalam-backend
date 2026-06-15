@@ -1,0 +1,9 @@
+[project]
+name = "yarabsalam-backend"
+version = "0.1.0"
+description = "YarabSalam Chatbot Backend"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
