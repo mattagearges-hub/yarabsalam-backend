@@ -38,11 +38,7 @@ class ChatRequest(BaseModel):
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# أفضل موديل مجاني متاح على OpenRouter لعمل عقيدي ولغوي دقيق
-# استخدم google/gemini-2.0-flash-exp:free (الأفضل مجاناً حالياً)
-# أو llama-3.3-70b-instruct:free كبديل
-MODEL_ID = os.environ.get("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free")
-# نسخة احتياطية إذا انتهى الكوتا: "meta-llama/llama-3.3-70b-instruct:free"
+MODEL_ID = os.environ.get("OPENROUTER_MODEL", "openrouter/free")
 
 ALLOWED_DOMAINS = [
     "st-takla.org", "copticheritage.org", "drghaly.com",
