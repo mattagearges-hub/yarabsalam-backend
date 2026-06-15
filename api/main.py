@@ -20,7 +20,7 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
 
-API_URL = "https://openrouter.ai/api/v1/chat/completions"
+API_URL = "https://openrouter.ai"
 MODEL_ID = "meta-llama/llama-3.1-8b-instruct:free"
 
 FORBIDDEN_KEYWORDS = ["دوا", "علاج", "روشتة", "أنتحر", "الانتحار", "موت نفسي", "حبوب مهدئة"]
@@ -77,10 +77,11 @@ async def chat_endpoint(request: ChatRequest):
             raise HTTPException(status_code=response.status_code, detail="سيرفر المحادثة مشغول حالياً.")
             
         result = response.json()
-        # تعديل سطر استخراج الرد ليقرأ المصفوفة بشكل صحيح بدون أخطاء
-        answer = result["choices"][0]["message"]["content"].strip()
         
-        if not answer:
+        # 🚨 التعديل الحتمي لمنع خطأ 404 الداخلي: استخراج النص البرمجي الصحيح من المصفوفة
+        if "choices" in result and len(result["choices"]) > 0:
+            answer = result["choices"][0]["message"]["content"].strip()
+        else:
             answer = "يا فاديَّ، عذراً، لم أستطع توليد رد مناسب حالياً. جرب تسألني تاني."
             
         return {"answer": answer}
