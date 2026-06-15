@@ -33,7 +33,7 @@ async def root():
 async def chat_endpoint(request: ChatRequest):
     cloud_token = os.environ.get("CLOUD_TOKEN", "")
     if not cloud_token:
-        raise HTTPException(status_code=500, detail="Missing CLOUD_TOKEN")
+        return {"answer": "يا فاديَّ، هناك مشكلة في إعدادات السيرفر (المفتاح السري مفقود)."}
         
     user_message = request.message.lower()
     
@@ -73,18 +73,19 @@ async def chat_endpoint(request: ChatRequest):
         async with httpx.AsyncClient(timeout=40.0) as client:
             response = await client.post(API_URL, headers=headers, json=payload)
             
+        # إذا حدث أي خطأ من سيرفر المحادثة الخارجي، الكود سيعالج الرد ولن ينهار السيرفر
         if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="سيرفر المحادثة مشغول حالياً.")
+            return {"answer": f"يا فاديَّ، السيرفر الخارجي مضغوط حالياً (كود {response.status_code}). جرب تسألني تاني كمان دقيقة."}
             
         result = response.json()
         
-        # 🚨 التعديل الحتمي لمنع خطأ 404 الداخلي: استخراج النص البرمجي الصحيح من المصفوفة
+        # حماية صارمة لاستخراج النص بأمان ومنع الانهيار
         if "choices" in result and len(result["choices"]) > 0:
             answer = result["choices"][0]["message"]["content"].strip()
         else:
-            answer = "يا فاديَّ، عذراً، لم أستطع توليد رد مناسب حالياً. جرب تسألني تاني."
+            answer = "يا فاديَّ، عذراً، لم أستطع الحصول على رد مناسب حالياً. جرب تسألني تاني."
             
         return {"answer": answer}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"answer": f"يا فاديَّ، عذراً حدث خطأ داخلي: {str(e)}"}
