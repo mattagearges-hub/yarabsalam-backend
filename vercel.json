@@ -1,5 +1,4 @@
 {
-  "devCommand": "uvicorn main:app --host 0.0.0.0 --port 8000",
   "version": 2,
   "builds": [
     {
@@ -10,7 +9,12 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "main.py"
+      "dest": "main.py",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
     }
   ]
 }
