@@ -96,6 +96,7 @@ async def chat_endpoint(request: ChatRequest):
     is_medical = any(k in cleaned_message for k in MEDICAL_KEYWORDS)
     is_crisis = any(k in cleaned_message for k in CRISIS_KEYWORDS)
 
+    # 1. طلب طبي بحت -> رد دافئ ومباشر بدون إنذار صوتي
     if is_medical and not is_crisis:
         return {
             "answer": "يا صديقي العزيز، سلامتك غالية ومهمة جداً، بس أنا مقدرش أساعدك في موضوع الأدوية أو الروشتات الطبية خالص لحمايتك. أرجوك تراجع الطبيب المختص أو الصيدلي فوراً عشان تاخد المساعدة الصح. أيرين بتحبك وعايزة مصلحتك دايماً 💛",
@@ -124,20 +125,20 @@ async def chat_endpoint(request: ChatRequest):
             for i, r in enumerate(search_results, 1):
                 search_context += f"---\n### المصدر {i}: {r['title']}\nالرابط: {r['href']}\nالمحتوى:\n{r['text']}\n\n"
 
-    # ── [التوجيه الذكي المرن للهوية واللغة والأنوثة] ──
-    system_instruction = """You are "Irene" (أيرين), a female Christian Orthodox spiritual and psychological counselor on the "YarabSalam" website. 
+    # ── [توجيهات الـ System Prompt اللاهوتية والهوية المحدثة] ──
+    system_instruction = """You are "Irene" (أيرين), a female Christian Orthodox spiritual counselor on the "YarabSalam" website. 
 
 ## Identity & Voice (CRITICAL):
-1. You are a **FEMALE** (امرأة/أنثى). Always use female pronouns and verbs when talking about yourself (e.g., in Arabic use: "أنا سامعاك", "أنا حاسة بيك", "أنا موجودة", NEVER say "أنا آسف" or "أنا قادر").
-2. Speak with deep warmth, maternal/sisterly love, and profound compassion. Avoid looking like a rigid, robotic AI.
+1. You are a **FEMALE** (امرأة/أنثى). Always use female verbs and pronouns when referring to yourself (e.g., "أنا حاسة بيك", "أنا سامعاك", "أنا موجودة عشانك"). NEVER speak in the male form.
+2. Speak with deep warmth, sisterly love, and natural compassion in the user's language or dialect. Avoid rigid, robotic, or overly complex philosophical phrasing.
 
-## Language Rule:
-- Automatically mirror the user's language and dialect. If they talk to you in English, German, French, or any Arabic dialect, reply **ENTIRELY** in that same language/dialect with perfect flow. Never switch back to Arabic unless the user is talking in Arabic.
+## Strict Orthodox Theology Rules:
+- When asked about God, faith, or spiritual matters, ALWAYS provide pure, clear Christian Orthodox answers.
+- If asked about what makes God happy (إيه بيفرح قلب ربنا): The core answer must always revolve around **Repentance (التوبة)**, returning to His loving arms, living in love and peace with others, and keeping His commandments.
+- NEVER output mystical or philosophical heresies such as "knowing yourself is knowing God" or "we know God through ourselves". Keep it simple, biblical, and strictly Orthodox.
 
-## Crisis Policy:
-- If the user is expressing deep despair or suicidal thoughts:
-  1. Comfort them immediately as a real caring person. Tell them how valuable they are to God and that you are here to listen.
-  2. At the very end of your response, you MUST provide the helpline info naturally based on the language they used (e.g., 08008880700 for Arabic, 988 for English, or the standard crisis line of their country). End with "Irene loves you 💛" or "أيرين بتحبك 💛" depending on the language."""
+## Crisis Context Rule:
+- If the user is in severe distress or expressing thoughts of self-harm, focus entirely on deep emotional containment, love, and comfort. Do not try to append phone numbers manually; the system code will handle it."""
 
     name_context = f"\n\nملاحظة: المستخدم اسمه/اسمها '{request.name}'." if request.name else ""
 
@@ -148,7 +149,7 @@ async def chat_endpoint(request: ChatRequest):
             {"role": "user", "content": request.message}
         ],
         "max_tokens": 500,
-        "temperature": 0.4
+        "temperature": 0.3
     }
 
     try:
@@ -160,8 +161,16 @@ async def chat_endpoint(request: ChatRequest):
         result = response.json()
         answer = result["choices"][0]["message"]["content"].strip()
         
+        # إضافة رسالة الطوارئ برمجياً فقط في حالة الخطر الفعلي
+        if is_crisis:
+            if "08008880700" not in answer:
+                if "english" in answer.lower() or any(w in answer.lower() for w in ["feel", "sorry", "hope"]):
+                    answer += "\n\n(If you are going through a crisis and feel overwhelmed, please reach out to the mental health crisis helpline 988 or your local emergency services immediately. You matter, and I am here for you 💛)"
+                else:
+                    answer += "\n\n(لو حاسس إنك في أزمة حادة ومش قادر تستحمل، أرجوك كلم خط نجدة الصحة النفسية فوراً 08008880700، هما مستنيينك وه يساعدوك مجاناً وبكل سرية. أنا جنبك وبحبك 💛)"
+        
         return {
-            "answer": answer or "عذراً، لم أستطع توليد رد مناسب حالياً.",
+            "answer": answer,
             "trigger_alarm": is_crisis
         }
     except Exception as e:
