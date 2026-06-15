@@ -21,13 +21,21 @@ class ChatRequest(BaseModel):
     message: str
 
 API_URL = "https://openrouter.ai"
-MODEL_ID = "qwen/qwen-2.5-72b-instruct:free"
+
+# 🧠 قائمة بأقوى وأسرع الموديلات المجانية المتاحة حالياً على OpenRouter
+# البوت سيختار الموديل المتاح تلقائياً لضمان عدم توقف الخدمة أبداً
+MODELS_POOL = [
+    "qwen/qwen-2.5-72b-instruct:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "microsoft/phi-3-medium-128k-instruct:free"
+]
 
 FORBIDDEN_KEYWORDS = ["دوا", "علاج", "روشتة", "أنتحر", "الانتحار", "موت نفسي", "حبوب مهدئة"]
 
 @app.get("/")
 async def root():
-    return {"message": "YarabSalam Cloud Bot is running perfectly on Vercel!"}
+    return {"message": "YarabSalam Intelligent Cloud Bot is running! 🕊️"}
 
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
@@ -59,33 +67,36 @@ async def chat_endpoint(request: ChatRequest):
         "5. الاختصار: جاوب بلطف واختصار ودون إطالة مملة وبنفس لهجة المستخدم."
     )
     
-    payload = {
-        "model": MODEL_ID,
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": request.message}
-        ],
-        "max_tokens": 300,
-        "temperature": 0.3
-    }
-    
-    try:
-        async with httpx.AsyncClient(timeout=40.0) as client:
-            response = await client.post(API_URL, headers=headers, json=payload)
+    # محاولة المرور على الموديلات بالترتيب حتى نجد الموديل المستقر والمتاح مجاناً حالياً
+    async with httpx.AsyncClient(timeout=40.0) as client:
+        for model_id in MODELS_POOL:
+            payload = {
+                "model": model_id,
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": request.message}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.3
+            }
             
-        # إذا حدث أي خطأ من سيرفر المحادثة الخارجي، الكود سيعالج الرد ولن ينهار السيرفر
-        if response.status_code != 200:
-            return {"answer": f"يا فاديَّ، السيرفر الخارجي مضغوط حالياً (كود {response.status_code}). جرب تسألني تاني كمان دقيقة."}
-            
-        result = response.json()
-        
-        # حماية صارمة لاستخراج النص بأمان ومنع الانهيار
-        if "choices" in result and len(result["choices"]) > 0:
-            answer = result["choices"][0]["message"]["content"].strip()
-        else:
-            answer = "يا فاديَّ، عذراً، لم أستطع الحصول على رد مناسب حالياً. جرب تسألني تاني."
-            
-        return {"answer": answer}
-        
-    except Exception as e:
-        return {"answer": f"يا فاديَّ، عذراً حدث خطأ داخلي: {str(e)}"}
+            try:
+                response = await client.post(API_URL, headers=headers, json=payload)
+                
+                # إذا نجح الموديل الحالي في الرد بنجاح (كود 200)
+                if response.status_code == 200:
+                    result = response.json()
+                    if "choices" in result and len(result["choices"]) > 0:
+                        answer = result["choices"][0]["message"]["content"].strip()
+                        return {"answer": answer, "model_used": model_id}
+                
+                # إذا أرجع السيرفر خطأ (مثل 500 أو 404)، قم بالطباعة والانتقال فوراً للموديل التالي
+                print(f"الموديل {model_id} مشغول أو أرجع خطأ {response.status_code}. يجري تجربة البديل...")
+                continue
+                
+            except Exception as e:
+                print(f"خطأ أثناء الاتصال بالموديل {model_id}: {str(e)}. يجري تجربة البديل...")
+                continue
+                
+        # إذا فشلت جميع الموديلات السحابية المجانية في نفس اللحظة (سيناريو نادر جداً)
+        return {"answer": "يا فاديَّ، جميع محركات المحادثة المجانية مشغولة حالياً بالكامل بسبب الضغط السحابي الكبير. من فضلك انتظر دقيقة واحدة وجرب تسألني تاني."}
