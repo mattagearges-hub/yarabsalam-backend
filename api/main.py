@@ -20,6 +20,7 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     name: str = ""
+    chat_history: list[dict] = []
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -37,11 +38,28 @@ ALLOWED_DOMAINS = [
 ]
 
 FORBIDDEN_KEYWORDS = [
-    "دوا", "علاج", "روشتة", "أنتحر", "الانتحار",
+    "دوا", "علاج", "روشتة", "أنتحر", "الانتحار", "انتحر",
     "موت نفسي", "حبوب مهدئة"
 ]
 
 SITE_FILTER = " OR ".join(f"site:{d}" for d in ALLOWED_DOMAINS)
+
+
+def normalize_arabic(text: str) -> str:
+    """توحيد النص العربي للفحص الدقيق."""
+    text = text.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+    text = text.replace("ة", "ه")
+    text = text.replace("ى", "ي")
+    return text
+
+
+def is_forbidden(text: str) -> bool:
+    """فحص الكلمات المحظورة بعد التوحيد."""
+    normalized = normalize_arabic(text.lower())
+    for keyword in FORBIDDEN_KEYWORDS:
+        if normalize_arabic(keyword) in normalized:
+            return True
+    return False
 
 
 def is_allowed_url(url: str) -> bool:
@@ -49,32 +67,29 @@ def is_allowed_url(url: str) -> bool:
     return any(domain in url for domain in ALLOWED_DOMAINS)
 
 
-def fetch_page_text(url: str, max_chars: int = 3000) -> str:
-    """فتح صفحة واستخراج النص فقط منها."""
+async def fetch_page_text(url: str, max_chars: int = 2000) -> str:
+    """فتح صفحة واستخراج النص فقط منها (غير متزامن)."""
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                           "AppleWebKit/537.36 (KHTML, like Gecko) "
                           "Chrome/120.0.0.0 Safari/537.36"
         }
-        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
-            resp = client.get(url, headers=headers)
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
             resp.raise_for_status()
 
         soup = BeautifulSoup(resp.text, "lxml")
 
-        # إزالة العناصر غير المرغوبة
         for tag in soup(["script", "style", "nav", "footer",
                          "header", "aside", "form", "iframe"]):
             tag.decompose()
 
-        # محاولة استخراج المحتوى الرئيسي
         main = soup.find("article") or soup.find("main") or soup.find("body")
         if not main:
             main = soup
 
         text = main.get_text(separator="\n", strip=True)
-        # قص النص لحجم معين
         if len(text) > max_chars:
             text = text[:max_chars] + "..."
         return text
@@ -83,8 +98,8 @@ def fetch_page_text(url: str, max_chars: int = 3000) -> str:
         return ""
 
 
-def search_web(query: str, max_results: int = 1) -> list[dict]:
-    """البحث في المواقع المعتمدة ثم فتح كل نتيجة وقراءتها بالكامل."""
+async def search_web(query: str, max_results: int = 1) -> list[dict]:
+    """البحث في المواقع المعتمدة ثم فتح كل نتيجة وقراءتها (غير متزامن)."""
     try:
         with DDGS() as ddgs:
             results = list(ddgs.text(
@@ -101,10 +116,8 @@ def search_web(query: str, max_results: int = 1) -> list[dict]:
         if not is_allowed_url(href):
             continue
 
-        # فتح الصفحة واستخراج النص الكامل
-        full_text = fetch_page_text(href)
+        full_text = await fetch_page_text(href)
         if not full_text:
-            # لو الصفحة ما اتفتحتش، نكتفي بالمقتطف من البحث
             full_text = r.get("body", "")
 
         enriched.append({
@@ -127,15 +140,12 @@ async def chat_endpoint(request: ChatRequest):
     if not cloud_token:
         raise HTTPException(status_code=500, detail="Missing CLOUD_TOKEN")
 
-    user_message = request.message.lower()
-
-    for keyword in FORBIDDEN_KEYWORDS:
-        if keyword in user_message:
-            return {
-                "answer": "يا صديقي، أنا هنا لتقديم الدعم الروحي والنفسي المبسط فقط. "
-                          "أمراض الأدوية والحالات الحادة تتطلب استشارة طبيب مختص فوراً. "
-                          "أيرين بتحبك وعايزة تساعدك 💛"
-            }
+    if is_forbidden(request.message):
+        return {
+            "answer": "يا صديقي، أنا هنا لتقديم الدعم الروحي والنفسي المبسط فقط. "
+                      "أمراض الأدوية والحالات الحادة تتطلب استشارة طبيب مختص فوراً. "
+                      "أيرين بتحبك وعايزة تساعدك 💛"
+        }
 
     headers = {
         "Authorization": f"Bearer {cloud_token}",
@@ -144,7 +154,7 @@ async def chat_endpoint(request: ChatRequest):
         "X-Title": "YarabSalam Bot"
     }
 
-    # ── البحث الحي فقط إذا كان السؤال حقيقي (مش ترحيب أو كلام عادي) ──
+    # ── البحث الحي فقط إذا كان السؤال حقيقي ──
     GREETINGS = [
         "هاي", "هلا", "مرحبا", "أهلا", "اهلا", "سلام", "السلام عليكم",
         "صباح", "مساء", "اخبارك", "اخبارك ايه", "عامل ايه", "عامله ايه",
@@ -160,7 +170,7 @@ async def chat_endpoint(request: ChatRequest):
 
     search_context = ""
     if needs_search:
-        search_results = search_web(request.message)
+        search_results = await search_web(request.message)
         if search_results:
             search_context = "\n\n## محتوى المواقع المرجعية (تم استخراجه مباشرة من المواقع):\n"
             for i, r in enumerate(search_results, 1):
@@ -195,7 +205,7 @@ async def chat_endpoint(request: ChatRequest):
 - لا تسأل أسئلة عميقة أو غريبة ابداً. ممنوع تماماً الأسئلة مثل: "اللي بيكرهش فيك"، "حاسس ب إيه"، "ايه اللي مزعلك".
 - ردود الترحيب الصحيحة فقط:
   ✓ "أهلاً بيك! أنا أيرين، ممكن أعرف اسمك عشان أقدر أخاطبك صح؟"
-  ✓ "أهلاً [الاسم]! نورتيني. احكيلى عايز تتكلم في إيه؟"
+  ✓ "أهلاً [الاسم]! نورتني/نورتيني. احكيلى عايز تتكلم في إيه؟"
   ✓ "أهلاً [الاسم]! أنا هنا لو عايز تتكلم في أي حاجة."
 - ردود خاطئة ممنوع تماماً:
   ✗ "ما هو اللي بيكرهش فيك"
@@ -205,7 +215,7 @@ async def chat_endpoint(request: ChatRequest):
 
 ## قواعد استخدام المحتوى المسترجع (مهم جداً):
 - يجب عليك صياغة الإجابة بناءً على المحتوى المسترجع من المواقع المرفقة لك فقط.
-- إذا وجدت محتوى من أي مصدر، استخدمه كأساس لإجابتك واذكر فكرته principales.
+- إذا وجدت محتوى من أي مصدر، استخدمه كأساس لإجابتك واذكر فكرته الرئيسية.
 - إلزاماً اذكر الرابط الحقيقي للمصدر في نهاية ردك ليضغط عليه المستخدم.
 - إذا لم تجد محتوى مناسب، أجب من معرفتك العامة وقل: "مش لاقي معلومة دقيقة في مراجعني عن الموضوع ده، بس ممكن تتأكد من مصدر موثوق."
 
@@ -247,14 +257,22 @@ async def chat_endpoint(request: ChatRequest):
 
     name_context = ""
     if request.name:
-        name_context = f"\n\nملاحظة: المستخدم اسمه/اسمها '{request.name}'. استخدم الاسم في المخاطبة."
+        name_context = f"\n\nملاحظة: المستخدم اسمه/اسمها '{request.name}'. استخدم الاسم في المخاطبة والصيغة المناسبة (مذكر/مؤنث)."
+
+    # ── بناء الرسائل مع تاريخ المحادثة ──
+    messages = [{"role": "system", "content": system_instruction + name_context + search_context}]
+
+    # إضافة تاريخ المحادثة السابق إن وُجد
+    if request.chat_history:
+        for msg in request.chat_history[-10:]:  # آخر 10 رسائل فقط
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+
+    # إضافة الرسالة الحالية
+    messages.append({"role": "user", "content": request.message})
 
     payload = {
         "model": MODEL_ID,
-        "messages": [
-            {"role": "system", "content": system_instruction + name_context + search_context},
-            {"role": "user", "content": request.message}
-        ],
+        "messages": messages,
         "max_tokens": 500,
         "temperature": 0.2
     }
