@@ -37,9 +37,17 @@ ALLOWED_DOMAINS = [
     "yarab-salam.great-site.net",
 ]
 
-FORBIDDEN_KEYWORDS = [
-    "دوا", "علاج", "روشتة", "أنتحر", "الانتحار", "انتحر",
-    "موت نفسي", "حبوب مهدئة"
+MEDICAL_KEYWORDS = [
+    "دوا", "دواء", "علاج", "روشته", "روشتة", "مهدئ",
+    "منوم", "برشام", "حبوب", "جرعه", "جرعة", "دوز", "دوا نفسي", "دواء نفسي", "حبوب مهدئة", "حبوب منومة"
+]
+
+CRISIS_KEYWORDS = [
+     "انتحر", "الانتحار", "اموت نفسي", "انهي حياتي", "اخلص من حياتي",
+    "بكره البشر", "مش عايز اعيش", "اقتل نفسي", "أنتحر",
+    "بدي موت", "بدي اخلص من حياتي", "نفسي اموت", "حياتي بلا معنى",
+    "مافي سبب للعيش", "مش قادر أتحمل", "مش قادر اتحمل", "مش قادر أعيش", "مش قادر اعيش",
+    "مش قادر أتحمل الحياة", "مش قادر اتحمل الحياة", "مش قادر أعيش الحياة", "مش قادر اعيش الحياة", "نفسي أنهي حياتي", "نفسي اخلص من حياتي", "نفسي اموت نفسي", "نفسي أقتل
 ]
 
 SITE_FILTER = " OR ".join(f"site:{d}" for d in ALLOWED_DOMAINS)
@@ -156,11 +164,10 @@ async def chat_endpoint(request: ChatRequest):
 
     # ── البحث الحي فقط إذا كان السؤال حقيقي ──
     GREETINGS = [
-        "هاي", "هلا", "مرحبا", "أهلا", "اهلا", "سلام", "السلام عليكم",
+        "هاي", "هلا", "مرحبا", "أهلا", "اهلا", "سلام", "السلام لكم",
         "صباح", "مساء", "اخبارك", "اخبارك ايه", "عامل ايه", "عامله ايه",
         "ازيك", "ازيك ايه", "كويس", "بخير", "الحمد لله", "ماشي", "تمام",
-        "hi", "hello", "hey", "how are you", "good morning", "good evening",
-        "thanks", "شكرا", "ممنون", "thank you"
+        "شكرا", "ممنون", "متشكر", "تسلم", "تسلمي", "تسلموا", "يسلمو", "يسلموا"
     ]
     msg_lower = request.message.strip().lower()
     needs_search = (
@@ -173,7 +180,7 @@ async def chat_endpoint(request: ChatRequest):
         search_results = await search_web(request.message)
         if search_results:
             search_context = "\n\n## محتوى المواقع المرجعية (تم استخراجه مباشرة من المواقع):\n"
-            for i, r in enumerate(search_results, 1):
+            for i, r in enumerate(search_results, 3):
                 search_context += (
                     f"---\n### المصدر {i}: {r['title']}\n"
                     f"الرابط: {r['href']}\n"
@@ -279,8 +286,8 @@ async def chat_endpoint(request: ChatRequest):
     payload = {
         "model": MODEL_ID,
         "messages": messages,
-        "max_tokens": 500,
-        "temperature": 0.2
+        "max_tokens": 1000,
+        "temperature": 0.7
     }
 
     try:
