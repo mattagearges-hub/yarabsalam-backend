@@ -24,7 +24,7 @@ class ChatRequest(BaseModel):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_ID = "meta-llama/llama-3.1-8b-instruct"
+MODEL_ID = "qwen/qwen-2.5-72b-instruct:free"
 
 ALLOWED_DOMAINS = [
     "st-takla.org",
