@@ -284,7 +284,7 @@ async def chat_endpoint(request: ChatRequest):
         "Authorization": f"Bearer {cloud_token}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://yarab-salam.great-site.net/",
-        "X-Title": "YarabSalam Bot — Irene"
+        "X-Title": "YarabSalam Bot - Irene"
     }
 
     payload = {
