@@ -33,8 +33,8 @@ MODEL_ID = "meta-llama/llama-3.1-8b-instruct"
 # إعدادات الاتصال بـ Supabase
 # ──────────────────────────────────────────────
 # ملحوظة: لو مش عارف تحطهم في Vercel، امسح الكلمة اللي بين القوسين وحط الرابط والمفتاح بتوعك هنا كـ نص مباشر "..."
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "ضع_رابط_الـ_URL_هنا")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "ضع_مفتاح_الـ_anon_public_هنا")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://joskoslxqsoxabmdzctv.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "sb_publishable_tQuau1sVeDIRoOqpvGydtg_zv-IduUA")
 
 try:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
