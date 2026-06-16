@@ -27,7 +27,7 @@ class ChatRequest(BaseModel):
 
 
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_ID = "meta-llama/llama-3.3-70b-instruct:free"
+MODEL_ID = "meta-llama/llama-3.1-8b-instruct"
 
 # ──────────────────────────────────────────────
 # إعدادات الاتصال بـ Supabase
